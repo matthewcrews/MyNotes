@@ -68,6 +68,8 @@ Any time a node is restricting flow in the network it will emit a disruption sig
 2. When a Tank is full and has no Output links, it will signal the Input nodes
 3. When a Tank is empty and has no Input links, it will signal the Output nodes
 4. When a Conveyor is at its maximum velocity, it will signal the Output nodes
+5. When a Merge is set to priority order, it will send a signal to each Input whose flow rate is either at its Max Flow Allowed setting or at a 0.
+6. When a Split is set to priority order, it will send a signal to each Output whose flow rate is either at its Max Flow Allowed setting or at a 0.
 
 ## Processing Signals
 
@@ -106,4 +108,27 @@ When a Conveyor's velocity is between 0 and the Max Velocity and a signal is rec
 In all other cases, the Conveyor ignores the signal and does not pass it along.
 
 ### Merge
+
+If a Merge is configured to send only one Input to one Output, any signal is passed through.
+
+If a Merge is configured to use Percentage or Proportional based rules, any signal is passed to all other connections.
+
+When a Merge is configured to be in priority order and the signal comes from the Input whose flow rate is between 0 and the Max Allowed Flow Rate, the signal is passed to the Output.
+
+When the Merge is configured to be in priority order and the signal comes from an Input whose flow rate is either 0 or at the Max Allowed Flow Rate, then the signal is ignored.
+
+When a Merge is configured to be in priority order and the signal comes from the Output, then the signal is passed to the Input whose flow rate is between 0 and the Max Allowed Flow Rate.
+
+### Split
+
+If a Split is configured to send only one Input to one Output, any signal is passed through.
+
+If a Split is configured to use Percentage or Proportional based rules, any signal is passed to all other connections.
+
+When a Split is configured to be in priority order and the signal comes from the Input, the signal is passed to the Output whose flow rate is between 0 and the Max Allowed Flow Rate.
+
+When a Split is configured to be in priority order and the signal comes from the Output whose flow rate is between 0 and the Max Allowed Flow Rate, the signal is passed to the Input.
+
+When a Split is configured to be in priority order and the signal comes from an Output whose flow rate is 0 or at the Max Allowed Flow Rate, the signal is ignored.
+
 
