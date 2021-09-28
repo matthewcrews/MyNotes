@@ -50,32 +50,60 @@ $\sum In = \sum Out$
 
 ## The Starved/Blocked Algorithm
 
-The way the Blocked/Starved Algorithm works is by sending messages through the network so that nodes can determine whether they are in a Blocked or Starved state and which node in the network is causing the problem. It is easy to determine whether a individual node is Blocked or Starved without regard to the rest of the network. You simply check whether the flow through the node is at the maximum possible rate. What is more difficult to determine is which node in the network is causing the issue.
+The way the Blocked/Starved Algorithm works is by sending a Disruption message through the network so that nodes can determine whether they are in a Blocked or Starved state and which node in the network is causing the problem. It is easy to determine whether a individual node is below capacity without regard to the rest of the network. You simply check whether the flow through the node is at the maximum possible rate. What is more difficult to determine is which node in the network is causing the issue.
 
-Only Valves and Conveyors can be in a Blocked or Starved state. Converters, Splits, and Merges are transparent for the purposes of being Blocked or Starved. A Blocking or Starving signal will passthrough them. What is important to consider in the case of Merges and Splits though is that they can be configured to only be receiving or sending to a single input or output. Therefore, the configuration of the Merge or Split must be taken into consideration when determining which nodes to pass a Blocking or Starving signal through.
+Only Valves and Conveyors can be in a Blocked or Starved state. Converters, Splits, and Merges are transparent for the purposes of being Blocked or Starved. A Disruption signal will pass through them. What is important to consider in the case of Merges and Splits though is that they can be configured to only be receiving or sending to a single input or output. Therefore, the configuration of the Merge or Split must be taken into consideration when determining which nodes to pass a Disruption signal through.
 
-### Sources of Blocking Signal
+Tanks cannot be Blocked or Starved but they can emit a Disruption signal and in some cases allow a Disruption signal to pass through them.
 
-The following conditions will trigger the emission of a 'Blocking' signal.
+### Disruption Signal
 
-1. When a Valve is at its maximum flow rate, its Inputs will receive a 'Blocking' signal
-2. When a Tank is full and has no Output links, its Inputs will receive a 'Blocking' signal
+A Disruption signal is emitted by a node when it is restricting the flow through the network. The signal will include the source node so that reporting metrics can indicate which node is causing the issue. It is entirely possible for a node to be disrupted due to a node that is several locations away in the network. It is this insight that we are after. We want to be able to answer the questions 1) which nodes are disrupted 2) is the node(s) starved and blocked and 3) which nodes are causing the issue.
 
-### Sources of Starving Signal
+### Signal Sources
 
-The following conditions will trigger the emission of a 'Starving' signal.
+Any time a node is restricting flow in the network it will emit a disruption signal. The direction of the signal is what determines if the impact is Blocking or Starving. If a node is restricting the flow of nodes connected to the output, then it is considered to be Starving the output nodes. If the node is restricting the input flow rate, then it is considered to be Blocking the input nodes.
 
-1. When a Valve is at its maximum flow rate, its Outputs will receive a 'Starving' signal
-2. When a Tank is empty and has no Input links, its Outputs will receive a 'Starving' signal
+1. When a Valve is at its maximum flow rate, it will signal the Input and Output nodes
+2. When a Tank is full and has no Output links, it will signal the Input nodes
+3. When a Tank is empty and has no Input links, it will signal the Output nodes
+4. When a Conveyor is at its maximum velocity, it will signal the Output nodes
 
+## Processing Signals
 
+Each node in a Network will process signals differently based on their current conditions. The following section details how each node processes signals and updates their current state.
 
-The only nodes with flow rates limits are Valves and Conveyors. Valves have a Max Flow Rate attribute which restricts how much can flow through the node. Conveyors have a limit on how fast they can move and therefore their maximum output rate is a function of the maximum conveyor velocity and the amount of material loaded onto the conveyor.
+### Converters
 
-When the flow rate going through a Valve is the Max Flow Rate of the Valve then a 'Starved' signal is sent to the Output links and a 'Blocked' is sent to the Input links.
+A Converter is transparent to signals. When it receives a signal, it simply passes it through.
 
-When a Conveyor is at its Max Velocity, then it will send a 'Starved' signal to its Outputs. If a Conveyor's Input is every 0, then it considers itself starved but it does not necessarily send a 'Starved' signal to the outputs. If a Conveyor is 
+### Tanks
 
-Some nodes merely pass signals along. Conversion, Merge, and Split nodes will pass the Blocked/Starved signal through since they cannot be Starved/Blocked.
+When a Tank receives a signal from its Outputs and the level is currently at the max capacity, it will pass the Blocked signal through to its Inputs.
 
-A Tank is a terminating node for Blocked/Starved signals. Tanks are never in a Blocked or Starved state but they can cause other nodes to be in a Blocked or Starved state.
+When a Tank receives a signal from its Inputs and the level is currently at 0, then it will pass the signal through to its Outputs.
+
+In all other cases, the Tank ignores the signal and does not pass it along.
+
+### Valves
+
+If the flow through a Valve is 0 and the signal comes from an Input, then the Valve's state is set to 'Fully Starved' and the signal is passed to the Outputs.
+
+If the flow through a Valve is 0 and the signal comes from an Output, then the Valve's state is set to 'Fully Blocked' and the signal is passed to the Inputs.
+
+If the flow through the Valve is between 0 and the Max Flow Rate and the signal comes from an Input, then the Valve's state is set to 'Starved' and signal is passed to the Outputs.
+
+If the flow through the Valve is between 0 and the Max Flow Rate and the signal comes from an Output, then the Valve's state is set to 'Blocked' and the signal is passed through.
+
+In all other cases, the Valve ignores the signal and does not pass it along.
+
+### Conveyor
+
+When a Conveyor's velocity is at 0 and a signal is received from an Ouput, the Conveyor's state is set to 'Fully Blocked' and the signal is passed to the Inputs.
+
+When a Conveyor's velocity is between 0 and the Max Velocity and a signal is received from an Output, the Conveyor's state is set to 'Blocked'. The signal is **not** passed to the Inputs.
+
+In all other cases, the Conveyor ignores the signal and does not pass it along.
+
+### Merge
+
